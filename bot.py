@@ -5,7 +5,7 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.client.default import DefaultBotProperties
 
-# Все данные уже вшиты, ничего настраивать не нужно
+# Все данные уже вшиты
 BOT_TOKEN = "9030131409:AAFq-5oHyRV6396KlmJcGYr4Qm6W_4m5PEI"
 MAIN_GROUP = "@uh_rp"
 
