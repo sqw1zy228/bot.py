@@ -1,54 +1,69 @@
-import discord
-import requests
+import asyncio
+import logging
+import os
+from aiohttp import web
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.client.default import DefaultBotProperties
 
-DISCORD_TOKEN = "MTU3MDgxOTMwMzA2NDg2MjgxMQ.G6wmgF._Z9XdDxSq3elYI35MV3dxFEUYBub5OdShtkqfc"
-TELEGRAM_BOT_TOKEN = "8847863527:AAEkpYS_px58XEmW59S4Sou1utNi9G4p7u4"
-TELEGRAM_CHAT_ID = "-1003903013247"  # Например: "-1001234567890"
-TARGET_CHANNEL_ID = 1561452282015645756
+# Все данные уже вшиты, ничего настраивать не нужно
+BOT_TOKEN = "9030131409:AAFq-5oHyRV6396KlmJcGYr4Qm6W_4m5PEI"
+MAIN_GROUP = "@uh_rp"
 
-intents = discord.Intents.default()
-intents.message_content = True
+NPU_TARGET = -1003876227272
+NPU_THREAD_ID = 962
 
-client = discord.Client(intents=intents)
+COURT_TARGET = -1004445001399
+COURT_THREAD_ID = 4565
 
-@client.event
-async def on_ready():
-    print(f"Бот {client.user} запущен! Слушаю ветку {TARGET_CHANNEL_ID}")
+logging.basicConfig(level=logging.INFO)
 
-@client.event
-async def on_message(message):
-    # Игнорируем сообщения самого пересыльщика
-    if message.author.id == client.user.id:
-        return
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
+dp = Dispatcher()
 
-    # Проверяем, что сообщение пришло из нужной ветки
-    if message.channel.id == TARGET_CHANNEL_ID:
-        log_parts = []
-        
-        # Если есть обычный текст
-        if message.content:
-            log_parts.append(message.content)
-            
-        # Если лог пришел в виде карточки (Embed) от вебхука/бота игры
-        for embed in message.embeds:
-            if embed.title:
-                log_parts.append(f"*{embed.title}*")
-            if embed.description:
-                log_parts.append(embed.description)
-            for field in embed.fields:
-                log_parts.append(f"*{field.name}:* {field.value}")
+# Обработка вызова НПУ (.102 или /102)
+@dp.message(F.text.regexp(r"(?i)^[\/\.](102)"))
+async def handle_npu_call(message: types.Message):
+    try:
+        await bot.copy_message(
+            chat_id=NPU_TARGET,
+            from_chat_id=message.chat.id,
+            message_id=message.message_id,
+            message_thread_id=NPU_THREAD_ID if NPU_THREAD_ID != 0 else None
+        )
+        logging.info("Виклик НПУ успішно скопійовано!")
+    except Exception as e:
+        logging.error(f"Помилка копіювання в НПУ: {e}")
 
-        if not log_parts:
-            return
+# Обработка вызова Суда (.суд, /суд, .court, /court)
+@dp.message(F.text.regexp(r"(?i)^[\/\.](суд|court)"))
+async def handle_court_call(message: types.Message):
+    try:
+        await bot.copy_message(
+            chat_id=COURT_TARGET,
+            from_chat_id=message.chat.id,
+            message_id=message.message_id,
+            message_thread_id=COURT_THREAD_ID if COURT_THREAD_ID != 0 else None
+        )
+        logging.info("Звернення до суду успішно скопійовано!")
+    except Exception as e:
+        logging.error(f"Помилка копіювання в Суд: {e}")
 
-        final_text = "📝 **Новый лог:**\n\n" + "\n".join(log_parts)
-        
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        payload = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": final_text,
-            "parse_mode": "Markdown"
-        }
-        requests.post(url, json=payload)
+async def health_check(request):
+    return web.Response(text="Bot is running!")
 
-client.run(DISCORD_TOKEN)
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+
+async def main():
+    await start_web_server()
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
