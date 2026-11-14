@@ -1,2 +1,2 @@
-discord.py
-requests
+aiogram>=3.13.0
+aiohttp>=3.9.0
