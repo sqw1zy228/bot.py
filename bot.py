@@ -5,7 +5,6 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.client.default import DefaultBotProperties
 
-# Все данные уже вшиты
 BOT_TOKEN = "9030131409:AAFq-5oHyRV6396KlmJcGYr4Qm6W_4m5PEI"
 MAIN_GROUP = "@uh_rp"
 
@@ -20,8 +19,8 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher()
 
-# Обработка вызова НПУ (.102 или /102)
-@dp.message(F.text.regexp(r"(?i)^[\/\.](102)"))
+# Ловимо все, де є 102 (наприклад, .102 або /102)
+@dp.message(F.text.lower().contains("102"))
 async def handle_npu_call(message: types.Message):
     try:
         await bot.copy_message(
@@ -34,8 +33,8 @@ async def handle_npu_call(message: types.Message):
     except Exception as e:
         logging.error(f"Помилка копіювання в НПУ: {e}")
 
-# Обработка вызова Суда (.суд, /суд, .court, /court)
-@dp.message(F.text.regexp(r"(?i)^[\/\.](суд|court)"))
+# Ловимо все, де є суд або court
+@dp.message(F.text.lower().regexp(r"(суд|court)"))
 async def handle_court_call(message: types.Message):
     try:
         await bot.copy_message(
